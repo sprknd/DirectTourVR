@@ -1,5 +1,5 @@
 /** 
-*   @author     with4 / with4@outlook.com
+*   @author     with4 / github.com/with4
 *   @file       scene for three.js WebVR
 *   @version    0.0.7
 **/
@@ -20,7 +20,7 @@ var crosshair;
 var isMouseDown = false;
 
 var keyboard = new THREEx.KeyboardState();
-var clock = new THREE.Clock();
+// var clock = new THREE.Clock();
 
 init();
 animate();
@@ -74,7 +74,6 @@ function init()
         // document.getElementById('container').appendChild(warning);
     }
     renderer.setSize(window.innerWidth, window.innerHeight);
-
     container.appendChild(renderer.domElement);
 
     /***********************/
@@ -90,6 +89,7 @@ function init()
     renderer.domElement.addEventListener( 'mouseup', onMouseUp, false );
     renderer.domElement.addEventListener( 'touchstart', onMouseDown, false );
     renderer.domElement.addEventListener( 'touchend', onMouseUp, false );
+    document.addEventListener('keydown', onKeyDown, false);
 
     /***********************/
     /*      EVENTS         */
@@ -102,7 +102,11 @@ function init()
     // mouse events
     function onMouseDown() { isMouseDown = true; }
     function onMouseUp() { isMouseDown = false; }
-    
+    function onKeyDown(e) {
+        console.log(e.keyCode);
+        camera.position.x += 100;
+    }
+
     /***********************/
     /*      CONTROLS       */
     /***********************/
@@ -146,24 +150,10 @@ function init()
 
 function animate() {
     renderer.animate(render);
-
 }
 
 function render() {
     //requestAnimationFrame(animate);
-    renderer.render(scene, camera);
-    update();
-}
-
-function update() {
-    // var delta = clock.getDelta();
-
-    // if (keyboard.pressed("1"))
-    //     document.getElementById('message').innerHTML = ' Have a nice day! - 1';
-    // if (keyboard.pressed("2"))
-    //     document.getElementById('message').innerHTML = ' Have a nice day! - 2';
-
-    //controls.update();
     stats.update();
+    renderer.render(scene, camera);
 }
-
