@@ -47,7 +47,8 @@ function init()
     camera = new THREE.PerspectiveCamera(
         75, window.innerWidth / window.innerHeight, 0.1, 1000);
     scene.add(camera);
-    //camera.position.set(24.2456, 1.6911, 15.984);
+    // camera.position.set(24.2456, 1.6911, 15.984);
+    camera.position.set(1, 0, 1);
 
     /***********************/
     /*     CROSS-HAIR      */
@@ -70,8 +71,8 @@ function init()
         renderer = new THREE.WebGLRenderer( {antialias: true} );
     } else {
         renderer = new THREE.CanvasRenderer();
-        // var warining = Detector.getWebGLErrorMessage();
-        // document.getElementById('container').appendChild(warning);
+        var warining = Detector.getWebGLErrorMessage();
+        document.getElementById('container').appendChild(warning);
     }
     renderer.setSize(window.innerWidth, window.innerHeight);
     container.appendChild(renderer.domElement);
@@ -81,19 +82,20 @@ function init()
     /***********************/
     renderer.vr.enabled = true;
     WEBVR.getVRDisplay(function (display) {
+        //camera.position.set(24.2456, 1.6911, 15.984);
         renderer.vr.setDevice(display);
         document.body.appendChild(WEBVR.getButton(display, renderer.domElement));
     });
 
+    /***********************/
+    /*      EVENTS         */
+    /***********************/
     renderer.domElement.addEventListener( 'mousedown', onMouseDown, false );
     renderer.domElement.addEventListener( 'mouseup', onMouseUp, false );
     renderer.domElement.addEventListener( 'touchstart', onMouseDown, false );
     renderer.domElement.addEventListener( 'touchend', onMouseUp, false );
     document.addEventListener('keydown', onKeyDown, false);
 
-    /***********************/
-    /*      EVENTS         */
-    /***********************/
     // automatically resize renderer
     THREEx.WindowResize(renderer, camera);
     // toggle full-screen on given key press
@@ -103,14 +105,14 @@ function init()
     function onMouseDown() { isMouseDown = true; }
     function onMouseUp() { isMouseDown = false; }
     function onKeyDown(e) {
-        console.log(e.keyCode);
-        camera.position.x += 100;
+        // console.log(e.keyCode);
+        // camera.position.y += 1;
     }
 
     /***********************/
     /*      CONTROLS       */
     /***********************/
-    //controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls = new THREE.OrbitControls(camera, renderer.domElement);
 
     /***********************/
     /*      STATS          */
@@ -154,6 +156,7 @@ function animate() {
 
 function render() {
     //requestAnimationFrame(animate);
+    controls.update();
     stats.update();
     renderer.render(scene, camera);
 }
