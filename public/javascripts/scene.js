@@ -70,8 +70,8 @@ function init()
         renderer = new THREE.WebGLRenderer( {antialias: true} );
     } else {
         renderer = new THREE.CanvasRenderer();
-        // var warining = Detector.getWebGLErrorMessage();
-        // document.getElementById('container').appendChild(warning);
+        var warining = Detector.getWebGLErrorMessage();
+        document.getElementById('container').appendChild(warning);
     }
     renderer.setSize(window.innerWidth, window.innerHeight);    
     container.appendChild(renderer.domElement);
@@ -81,20 +81,21 @@ function init()
     /***********************/
     renderer.vr.enabled = true;
     WEBVR.getVRDisplay(function (display) {
+        //camera.position.set(24.2456, 1.6911, 15.984);
         renderer.vr.setDevice(display);
         camera.position.set(24.2456, 1.6911, 15.984);
         document.body.appendChild(WEBVR.getButton(display, renderer.domElement));
     });
 
+    /***********************/
+    /*      EVENTS         */
+    /***********************/
     renderer.domElement.addEventListener( 'mousedown', onMouseDown, false );
     renderer.domElement.addEventListener( 'mouseup', onMouseUp, false );
     renderer.domElement.addEventListener( 'touchstart', onMouseDown, false );
     renderer.domElement.addEventListener( 'touchend', onMouseUp, false );
     document.addEventListener('keydown', onKeyDown, false);
 
-    /***********************/
-    /*      EVENTS         */
-    /***********************/
     // automatically resize renderer
     THREEx.WindowResize(renderer, camera);
     // toggle full-screen on given key press
@@ -104,15 +105,14 @@ function init()
     function onMouseDown() { isMouseDown = true; }
     function onMouseUp() { isMouseDown = false; }
     function onKeyDown(e) {
-        //console.log(e.keyCode);
-        //camera.position.x += 100;
+        // console.log(e.keyCode);
+        // camera.position.y += 1;
     }
 
     /***********************/
     /*      CONTROLS       */
     /***********************/
     controls = new THREE.OrbitControls(camera, renderer.domElement);
-    controls.addEventListener('change', render);
 
     /***********************/
     /*      STATS          */
