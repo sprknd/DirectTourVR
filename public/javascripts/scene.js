@@ -8,9 +8,9 @@ if (typeof require === 'function') {
     var THREE = require('three');
 }
 
-WEBVR.checkAvailability().catch(function (message) {
-    document.body.appendChild(WEBVR.getMessageContainer(message));
-});
+// WEBVR.checkAvailability().catch(function (message) {
+//     document.body.appendChild(WEBVR.getMessageContainer(message));
+// });
 
 /*********************************/
 /*       GLOBAL VARIABLES        */
@@ -47,7 +47,7 @@ function init()
     camera = new THREE.PerspectiveCamera(
         75, window.innerWidth / window.innerHeight, 0.1, 1000);
     scene.add(camera);
-    //camera.position.set(24.2456, 1.6911, 15.984);
+    camera.position.set(0, 1, 1);
 
     /***********************/
     /*     CROSS-HAIR      */
@@ -73,7 +73,7 @@ function init()
         // var warining = Detector.getWebGLErrorMessage();
         // document.getElementById('container').appendChild(warning);
     }
-    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setSize(window.innerWidth, window.innerHeight);    
     container.appendChild(renderer.domElement);
 
     /***********************/
@@ -82,6 +82,7 @@ function init()
     renderer.vr.enabled = true;
     WEBVR.getVRDisplay(function (display) {
         renderer.vr.setDevice(display);
+        camera.position.set(24.2456, 1.6911, 15.984);
         document.body.appendChild(WEBVR.getButton(display, renderer.domElement));
     });
 
@@ -103,14 +104,15 @@ function init()
     function onMouseDown() { isMouseDown = true; }
     function onMouseUp() { isMouseDown = false; }
     function onKeyDown(e) {
-        console.log(e.keyCode);
-        camera.position.x += 100;
+        //console.log(e.keyCode);
+        //camera.position.x += 100;
     }
 
     /***********************/
     /*      CONTROLS       */
     /***********************/
-    //controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.addEventListener('change', render);
 
     /***********************/
     /*      STATS          */
@@ -149,11 +151,12 @@ function init()
 }
 
 function animate() {
-    renderer.animate(render);
+    requestAnimationFrame(animate);
+    controls.update();
+    stats.update();
+    render();
 }
 
 function render() {
-    //requestAnimationFrame(animate);
-    stats.update();
     renderer.render(scene, camera);
 }
