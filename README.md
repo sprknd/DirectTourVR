@@ -1,1 +1,1 @@
-# WebVR-Boilerplate
+# WebVR-Control
