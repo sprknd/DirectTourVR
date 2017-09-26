@@ -57,7 +57,7 @@ function init()
         var warining = Detector.getWebGLErrorMessage();
         document.getElementById('container').appendChild(warning);
     }
-    renderer.setSize(window.innerWidth, window.innerHeight);    
+    renderer.setSize(window.innerWidth, window.innerHeight);
     container.appendChild(renderer.domElement);
 
     /***********************/
@@ -260,4 +260,8 @@ function animate() {
 
 function render() {
     renderer.render(scene, camera);
+}
+
+function switchMouse() {
+    
 }
