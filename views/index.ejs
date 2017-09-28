@@ -3,32 +3,33 @@
 
 <head>
     <meta charset=utf-8>
-    <title>My first three.js app</title>
+    <title>DirectTourVR</title>
     <link rel='stylesheet' href='/stylesheets/style.css' />
     
     <!-- includes -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/87/three.js"></script>
-    <script src="javascripts/lib/Detector.js"></script>
-    <script src="javascripts/lib/THREEx.WindowResize.js"></script>
-    <script src="javascripts/lib/THREEx.KeyboardState.js"></script>
-    <script src="javascripts/lib/THREEx.FullScreen.js"></script>
     <script src="javascripts/lib/Stats.js"></script>
+    <script src="javascripts/lib/Detector.js"></script>
+    <script src="javascripts/lib/THREEx/THREEx.WindowResize.js"></script>
+    <script src="javascripts/lib/THREEx/THREEx.KeyboardState.js"></script>
+    <script src="javascripts/lib/THREEx/THREEx.FullScreen.js"></script>
     
     <!-- For VR -->
-    <!-- <script src="javascripts/lib/StereoEffect.js"></script> -->
-    <!-- <script src="javascripts/lib/OrbitControls.js"></script> -->
-    <!-- <script src="javascripts/lib/VRControls.js"></script> -->
-    <!-- <script src="javascripts/lib/VREffect.js"></script> -->
-    <!-- <script src="javascripts/lib/webvr-polyfill.min.js"></script> -->
-    <!-- <script src="javascripts/lib/webvr-ui.min.js"></script> -->
-    <script src="javascripts/lib/WebVR.js"></script>
+    <script src="javascripts/lib/controls/OrbitControls.js"></script>
+    <script src="javascripts/lib/controls/PointerLockControls.js"></script>
+    <script src="javascripts/lib/controls/VRControls.js"></script>
+    <script src="javascripts/lib/vr/WebVR.js"></script>
 </head>
 
 <body>
-    <div id="message"></div>
-    <div id="ui">
-        <a id="magic-window" href="#">헤드셋 없이 할래요!</a>
-    </div>
+    <ul class="" id="controls">
+        <li>
+            <button title="Mouse" class="uiButton" id="mouseButton" onclick="switchMouse();"></button>
+        </li>
+    </ul>
+    <audio id="sound" preload="none">
+        <source src="assets/audio/win31.mp3" type="audio/mpeg">
+    </audio>
     <script src="javascripts/scene.js"></script>
 </body>
 
