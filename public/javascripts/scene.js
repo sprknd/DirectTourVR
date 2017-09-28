@@ -20,23 +20,51 @@ var crosshair;
 var isMouseDown = false;
 
 var keyboard = new THREEx.KeyboardState();
-// var clock = new THREE.Clock();
+
+var controlsEnabled = false;
+var raycaster;
+var objects = [];
+
+var _viewFinder;
+var _cameraRoot;
+
+/***********************/
+/*    POINTER LOCK     */
+/***********************/
+var havePointerLock = 
+    'pointerLockElement'        in document ||
+    'mozPointerLockElement'     in document ||
+    'webkitPointerLockElement'  in document;
+
+if (havePointerLock) {
+    var element = document.body;
+    var pointerlockchange = function (event) {
+        if (document.pointerLockElement === element ||
+            document.mozPointerLockElement === element ||
+            document.webkitPointerLockElement === element) {
+            controls.enabled = true;
+            controlsEnabled = true;
+        }
+        else {
+            controls.enabled = false;
+        }
+    }
+
+}
+
+
+init();
+animate();
+
 
 var moveForward = false;
 var moveBackward = false;
 var moveLeft = false;
 var moveRight = false;
 var canJump = false;
-
 var prevTime = performance.now();
 var velocity = new THREE.Vector3();
 var direction = new THREE.Vector3();
-
-var raycaster;
-
-init();
-animate();
-
 
 /***********************/
 /*      FUNCTIONS      */
@@ -63,10 +91,9 @@ function init()
     /***********************/
     /*       WEBVR         */
     /***********************/
+    renderer.vr.enabled = true;
     WEBVR.getVRDisplay(function (display) {
-        renderer.vr.enabled = true;
         renderer.vr.setDevice(display);
-        //camera.position.set(24.2456, 1.6911, 15.984);
         document.body.appendChild(WEBVR.getButton(display, renderer.domElement));
     });
 
@@ -75,7 +102,7 @@ function init()
     /***********************/
     scene = new THREE.Scene();
     scene.background = new THREE.Color( 0xffffff );
-    scene.fog = new THREE.Fog(0xffffff, 0, 750);
+    scene.fog = new THREE.Fog(0xffffff, 0, 300);
 
     /***********************/
     /*      LIGHT          */
@@ -91,39 +118,15 @@ function init()
         75, window.innerWidth / window.innerHeight, 0.1, 1000);
     scene.add(camera);
     camera.position.set(1, 0, 1);
-
+        
     /***********************/
     /*      CONTROLS       */
     /***********************/
     // controls = new THREE.OrbitControls(camera, renderer.domElement);
     controls = new THREE.PointerLockControls(camera);
     scene.add(controls.getObject());
+    controls.getObject().position.set(32.2538, 2, 92.2421);
 
-    // pointerLock
-    var havePointerLock = 
-        'pointerLockElement' in document ||
-        'mozPointerLockElement' in document ||
-        'webkitPointerLockElement' in document;
-    if (havePointerLock) {
-        var element = document.body;
-        var pointerlockchange = function (event) {
-            if (document.pointerLockElement === element ||
-                document.mozPointerLockElement === element ||
-                document.webkitPointerLockElement == element) {
-                
-                controlsEnabled = true;
-                controls.enabled = true;
-            }
-        }
-        element.addEventListener('click', function (event) {
-            // ask the browser to lock the pointer
-            element.requestPointerLock = element.requestPointerLock ||
-                element.mozRequestPointerLock ||
-                element.webkitRequestPointerLock;
-            element.requestPointerLock();
-        }, false);
-    }
-    
     /***********************/
     /*     CROSS-HAIR      */
     /***********************/
@@ -187,9 +190,7 @@ function init()
                 moveRight = true;
                 break;
             case 32: // space
-                if (canJump === true )
-                    velocity.y += 350;
-                canJump = false;
+                velocity.y += 250;
                 break;
         }
     }
@@ -218,9 +219,10 @@ function init()
     /***********************/
     /*     RAY CASTER      */
     /***********************/
-    raycaster = new THREE.Raycaster(new THREE.Vector3(), 
+    raycaster = new THREE.Raycaster(
+        new THREE.Vector3(), 
         new THREE.Vector3(0, -1, 0), 0, 10);
-
+        
     /***********************/
     /*      STATS          */
     /***********************/
@@ -244,8 +246,10 @@ function init()
         function(geometry, materials) {
             var material = new THREE.MeshFaceMaterial(materials);
             var object = new THREE.Mesh(geometry, material);
+            object.scale.set(1.5, 1.5, 1.5);
+            //object.position.set(0, 0, 0);
             scene.add(object);
-            object.position.set(-24.2456, -1.6911, -15.984);
+            objects.push(object);
         }
     );
 
@@ -253,15 +257,77 @@ function init()
 
 function animate() {
     requestAnimationFrame(animate);
-    //controls.update();
     stats.update();
-    render();
-}
 
-function render() {
+    if (controlsEnabled === true) {
+        raycaster.ray.origin.copy( controls.getObject().position );
+        raycaster.ray.origin.y -= 10;
+        var intersections = raycaster.intersectObjects( objects );
+        var onObject = intersections.length > 0;
+
+        var time = performance.now();
+        var delta = (time - prevTime) / 1000;
+    
+        velocity.x -= velocity.x * 10 * delta;
+        velocity.z -= velocity.z * 10 * delta;
+        velocity.y -= 9.8 * 100.0 * delta;
+    
+        direction.x = Number(moveLeft) - Number(moveRight);
+        direction.z = Number(moveForward) - Number(moveBackward);
+        direction.normalize();
+    
+        if (moveLeft || moveRight)
+            velocity.x -= direction.x * 100.0 * delta;
+        if (moveForward || moveBackward)
+            velocity.z -= direction.z * 100.0 * delta;
+    
+        if (onObject === true) {
+            velocity.y = Math.max(0, velocity.y);
+            canJump = true;
+        }
+        
+        controls.getObject().translateX( velocity.x * delta );
+        controls.getObject().translateY( velocity.y * delta );
+        controls.getObject().translateZ( velocity.z * delta );
+    
+        if (controls.getObject().position.y < 10) {
+            velocity.y = 0;
+            controls.getObject().position.y = 2;
+            canJump = true;
+        }
+    
+        prevTime = time;
+    }
+    
+    if (isGearGamepadPressed()) {
+        //playSound();
+        camera.position.x += 1;
+    }
+    
     renderer.render(scene, camera);
 }
 
 function switchMouse() {
-    
+    // ask the browser to lock the pointer
+    element.requestPointerLock = 
+        element.requestPointerLock      ||
+        element.mozRequestPointerLock   ||
+        element.webkitRequestPointerLock;
+    element.requestPointerLock();
+}
+
+function playSound() {
+    var sound = document.getElementById('sound');
+    sound.play();
+}
+
+function isGearGamepadPressed() {
+    var gamepads = navigator.getGamepads && navigator.getGamepads();
+    if (!gamepads[0])
+        return false;
+    else {
+        // GearVR : button[0] - touchpad button
+        // GearVR : button[1] - trigger
+        return gamepads[0].buttons[1].pressed;
+    }
 }
