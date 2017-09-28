@@ -1,7 +1,7 @@
 /** 
 *   @author     with4 / github.com/with4
 *   @file       scene for three.js WebVR
-*   @version    0.0.7
+*   @version    0.1.0
 **/
 
 if (typeof require === 'function') {
