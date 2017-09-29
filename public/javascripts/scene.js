@@ -20,7 +20,7 @@ var crosshair;
 var isMouseDown = false;
 
 var keyboard = new THREEx.KeyboardState();
-
+var gamepads;
 var controlsEnabled = false;
 var raycaster;
 var objects = [];
@@ -260,10 +260,10 @@ function animate() {
     stats.update();
 
     if (controlsEnabled === true) {
-        raycaster.ray.origin.copy( controls.getObject().position );
-        raycaster.ray.origin.y -= 10;
-        var intersections = raycaster.intersectObjects( objects );
-        var onObject = intersections.length > 0;
+        // raycaster.ray.origin.copy( controls.getObject().position );
+        // raycaster.ray.origin.y -= 10;
+        // var intersections = raycaster.intersectObjects( objects );
+        // var onObject = intersections.length > 0;
 
         var time = performance.now();
         var delta = (time - prevTime) / 1000;
@@ -281,10 +281,10 @@ function animate() {
         if (moveForward || moveBackward)
             velocity.z -= direction.z * 100.0 * delta;
     
-        if (onObject === true) {
-            velocity.y = Math.max(0, velocity.y);
-            canJump = true;
-        }
+        // if (onObject === true) {
+        //     velocity.y = Math.max(0, velocity.y);
+        //     canJump = true;
+        // }
         
         controls.getObject().translateX( velocity.x * delta );
         controls.getObject().translateY( velocity.y * delta );
@@ -299,9 +299,25 @@ function animate() {
         prevTime = time;
     }
     
-    if (isGearGamepadPressed()) {
-        //playSound();
-        camera.position.x += 1;
+    switch (isGearGamepadPressed())
+    {
+        // touch button
+        case 0:
+            // go where I looking at
+            var direct = new THREE.Vector3();
+            camera.getWorldDirection(direct);
+            controls.getObject().translateX(direct.x);
+            controls.getObject().translateZ(direct.z);
+            break;
+
+        // trigger
+        case 1:
+            playSound();
+            
+            break;
+
+        default:
+            break;
     }
     
     renderer.render(scene, camera);
@@ -322,12 +338,16 @@ function playSound() {
 }
 
 function isGearGamepadPressed() {
-    var gamepads = navigator.getGamepads && navigator.getGamepads();
+    gamepads = navigator.getGamepads && navigator.getGamepads();
     if (!gamepads[0])
         return false;
-    else {
-        // GearVR : button[0] - touchpad button
-        // GearVR : button[1] - trigger
-        return gamepads[0].buttons[1].pressed;
-    }
+    var buttons = gamepads[0].buttons;
+    var arrIndex = undefined;
+    buttons.some((elem, index) => {
+        if (elem.pressed === true) {
+            arrIndex = index;
+            return true;
+        }
+    });
+    return arrIndex;
 }
