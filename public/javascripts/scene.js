@@ -24,9 +24,19 @@ var keyboard = new THREEx.KeyboardState();
 var gamepads;
 var controlsEnabled = false;
 var raycaster;
-var objects = [];
+var collidableMeshList = [];
 
 var naviworks_base;
+var directionList = [
+    new THREE.Vector3(0, 0, 1),     // 0
+    new THREE.Vector3(1, 0, 1),     // 45
+    new THREE.Vector3(1, 0, 0),     // 90
+    new THREE.Vector3(1, 0, -1),    // 135
+    new THREE.Vector3(0, 0, -1),    // 180
+    new THREE.Vector3(-1, 0, -1),   // 225
+    new THREE.Vector3(-1, 0, 0),    // 270
+    new THREE.Vector3(-1, 0, 1)     // 315
+];
 
 /***********************/
 /*    POINTER LOCK     */
@@ -222,10 +232,6 @@ function init()
     /***********************/
     /*     RAY CASTER      */
     /***********************/
-    raycaster = new THREE.Raycaster(
-        new THREE.Vector3(), 
-        new THREE.Vector3(0, -1, 0),
-        0, 10);
         
     /***********************/
     /*      STATS          */
@@ -255,7 +261,7 @@ function init()
             naviworks_base.scale.set(1.5, 1.5, 1.5);
             //object.position.set(0, 0, 0);
             scene.add(naviworks_base);
-            objects.push(naviworks_base);
+            collidableMeshList.push(naviworks_base);
         }
     );
 
@@ -266,6 +272,7 @@ function animate() {
     stats.update();
     
     var delta = clock.getDelta();
+    var position = controls.getObject().position;
 
     if (controlsEnabled === true) {
         velocity.x -= velocity.x * 10 * delta;
@@ -275,24 +282,39 @@ function animate() {
         direction.x = Number(moveLeft) - Number(moveRight);
         direction.z = Number(moveForward) - Number(moveBackward);
         direction.normalize();
-    
+        
+        for (var index = 0; index < directionList.length; index += 1) {
+            var bounceSize = 0.07;
+            directionList[index].bounceDistance = {
+                x: directionList[index].x * bounceSize,
+                y: directionList[index].y * bounceSize,
+                z: directionList[index].z * bounceSize
+            };
+            raycaster = new THREE.Raycaster(position, directionList[index]);
+            var intersects = raycaster.intersectObjects(collidableMeshList, true);
+
+            if (intersects.length > 0 && intersects[0].distance < 1) {
+                bounceBack(position, directionList[index]);
+            }
+        }
+
         if (moveLeft || moveRight)
             velocity.x -= direction.x * 100.0 * delta;
         if (moveForward || moveBackward)
             velocity.z -= direction.z * 100.0 * delta;
-    
+
         // if (onObject === true) {
         //     velocity.y = Math.max(0, velocity.y);
         //     canJump = true;
         // }
-        
-        controls.getObject().translateX( velocity.x * delta );
-        controls.getObject().translateY( velocity.y * delta );
-        controls.getObject().translateZ( velocity.z * delta );
-    
-        if (controls.getObject().position.y < 10) {
+
+        controls.getObject().translateX(velocity.x * delta);
+        controls.getObject().translateY(velocity.y * delta);
+        controls.getObject().translateZ(velocity.z * delta);
+
+        if (position.y < 10) {
             velocity.y = 0;
-            controls.getObject().position.y = 2;
+            position.y = 2;
             canJump = true;
         }
     }
@@ -302,11 +324,34 @@ function animate() {
     {
         // touch button
         case 0:
-            // go where I looking at
+            velocity.x -= velocity.x * 10 * delta;
+            velocity.z -= velocity.z * 10 * delta;
+            velocity.y -= 9.8 * 100.0 * delta;
+        
+            // get direction where I looking at
             var direct = new THREE.Vector3();
             camera.getWorldDirection(direct);
-            controls.getObject().translateX(direct.x);
-            controls.getObject().translateZ(direct.z);
+            direct.normalize();
+
+            // collision dectection
+            var ray = new THREE.Raycaster(position, direct);
+            var intersects = ray.intersectObjects(collidableMeshList, true);
+            if (intersects.length > 0 && intersects[0].distance < 2)
+                break;  // if collide, do not move
+
+            velocity.x += direct.x * 100 * delta;
+            velocity.z += direct.z * 100 * delta;
+
+            controls.getObject().translateX( velocity.x * delta );
+            controls.getObject().translateY( velocity.y * delta );
+            controls.getObject().translateZ( velocity.z * delta );
+            
+            if (position.y < 10) {
+                velocity.y = 0;
+                position.y = 2;
+                canJump = true;
+            }
+
             break;
 
         // trigger
@@ -328,6 +373,7 @@ function switchMouse() {
         element.requestPointerLock      ||
         element.mozRequestPointerLock   ||
         element.webkitRequestPointerLock;
+
     element.requestPointerLock();
 }
 
@@ -349,4 +395,10 @@ function isGearVRGamepadPressed() {
         }
     });
     return arrIndex;
+}
+
+function bounceBack(position, ray) {
+    position.x -= ray.bounceDistance.x;
+    position.y -= ray.bounceDistance.y;
+    position.z -= ray.bounceDistance.z;
 }
