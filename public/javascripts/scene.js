@@ -18,6 +18,7 @@ if (typeof require === 'function') {
 var container, scene, camera, renderer, controls, stats;
 var crosshair;
 var isMouseDown = false;
+var clock;
 
 var keyboard = new THREEx.KeyboardState();
 var gamepads;
@@ -25,8 +26,7 @@ var controlsEnabled = false;
 var raycaster;
 var objects = [];
 
-var _viewFinder;
-var _cameraRoot;
+var naviworks_base;
 
 /***********************/
 /*    POINTER LOCK     */
@@ -47,6 +47,7 @@ if (havePointerLock) {
         }
         else {
             controls.enabled = false;
+            controlsEnabled = false;
         }
     }
 
@@ -71,6 +72,8 @@ var direction = new THREE.Vector3();
 /***********************/
 function init() 
 {
+    clock = new THREE.Clock();
+
     // Append the canvas element created by the renderer to document body element.
     container = document.createElement('div');
     document.body.appendChild(container);
@@ -144,10 +147,10 @@ function init()
     /***********************/
     /*      EVENTS         */
     /***********************/
-    renderer.domElement.addEventListener( 'mousedown', onMouseDown, false );
-    renderer.domElement.addEventListener( 'mouseup', onMouseUp, false );
-    renderer.domElement.addEventListener( 'touchstart', onMouseDown, false );
-    renderer.domElement.addEventListener( 'touchend', onMouseUp, false );
+    renderer.domElement.addEventListener('mousedown', onMouseDown, false);
+    renderer.domElement.addEventListener('mouseup', onMouseUp, false);
+    renderer.domElement.addEventListener('touchstart', onMouseDown, false);
+    renderer.domElement.addEventListener('touchend', onMouseUp, false);
 
     // hook pointer lock state change events
     document.addEventListener('pointerlockchange', pointerlockchange, false);
@@ -221,7 +224,8 @@ function init()
     /***********************/
     raycaster = new THREE.Raycaster(
         new THREE.Vector3(), 
-        new THREE.Vector3(0, -1, 0), 0, 10);
+        new THREE.Vector3(0, -1, 0),
+        0, 10);
         
     /***********************/
     /*      STATS          */
@@ -245,11 +249,13 @@ function init()
         // function when resource is loaded
         function(geometry, materials) {
             var material = new THREE.MeshFaceMaterial(materials);
-            var object = new THREE.Mesh(geometry, material);
-            object.scale.set(1.5, 1.5, 1.5);
+            naviworks_base = new THREE.Mesh(geometry, material);
+            naviworks_base.name = "naviworks_base";
+
+            naviworks_base.scale.set(1.5, 1.5, 1.5);
             //object.position.set(0, 0, 0);
-            scene.add(object);
-            objects.push(object);
+            scene.add(naviworks_base);
+            objects.push(naviworks_base);
         }
     );
 
@@ -258,16 +264,10 @@ function init()
 function animate() {
     requestAnimationFrame(animate);
     stats.update();
+    
+    var delta = clock.getDelta();
 
     if (controlsEnabled === true) {
-        // raycaster.ray.origin.copy( controls.getObject().position );
-        // raycaster.ray.origin.y -= 10;
-        // var intersections = raycaster.intersectObjects( objects );
-        // var onObject = intersections.length > 0;
-
-        var time = performance.now();
-        var delta = (time - prevTime) / 1000;
-    
         velocity.x -= velocity.x * 10 * delta;
         velocity.z -= velocity.z * 10 * delta;
         velocity.y -= 9.8 * 100.0 * delta;
@@ -295,11 +295,10 @@ function animate() {
             controls.getObject().position.y = 2;
             canJump = true;
         }
-    
-        prevTime = time;
     }
     
-    switch (isGearGamepadPressed())
+    
+    switch (isGearVRGamepadPressed())
     {
         // touch button
         case 0:
@@ -337,7 +336,7 @@ function playSound() {
     sound.play();
 }
 
-function isGearGamepadPressed() {
+function isGearVRGamepadPressed() {
     gamepads = navigator.getGamepads && navigator.getGamepads();
     if (!gamepads[0])
         return false;
