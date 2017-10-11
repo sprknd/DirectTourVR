@@ -1,1 +1,2 @@
-# WebVR-Control
+# DirectTour VR
+A virtual building tour web app for WebVR
