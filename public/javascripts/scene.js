@@ -115,7 +115,7 @@ function init()
     /***********************/
     scene = new THREE.Scene();
     scene.background = new THREE.Color( 0xffffff );
-    scene.fog = new THREE.Fog(0xffffff, 0, 300);
+    //scene.fog = new THREE.Fog(0xffffff, 0, 300);
 
     /***********************/
     /*      LIGHT          */
@@ -232,7 +232,9 @@ function init()
     /***********************/
     /*     RAY CASTER      */
     /***********************/
-        
+    raycaster = new THREE.Raycaster(new THREE.Vector3(),
+        new THREE.Vector3(0, -1, 0),0, 10);
+
     /***********************/
     /*      STATS          */
     /***********************/
@@ -264,8 +266,7 @@ function init()
             collidableMeshList.push(naviworks_base);
         }
     );
-
-}
+}   // EOF init()
 
 function animate() {
     requestAnimationFrame(animate);
@@ -283,20 +284,7 @@ function animate() {
         direction.z = Number(moveForward) - Number(moveBackward);
         direction.normalize();
         
-        for (var index = 0; index < directionList.length; index += 1) {
-            var bounceSize = 0.07;
-            directionList[index].bounceDistance = {
-                x: directionList[index].x * bounceSize,
-                y: directionList[index].y * bounceSize,
-                z: directionList[index].z * bounceSize
-            };
-            raycaster = new THREE.Raycaster(position, directionList[index]);
-            var intersects = raycaster.intersectObjects(collidableMeshList, true);
-
-            if (intersects.length > 0 && intersects[0].distance < 1) {
-                bounceBack(position, directionList[index]);
-            }
-        }
+        collisionDetection(position);
 
         if (moveLeft || moveRight)
             velocity.x -= direction.x * 100.0 * delta;
@@ -334,10 +322,10 @@ function animate() {
             direct.normalize();
 
             // collision dectection
-            var ray = new THREE.Raycaster(position, direct);
-            var intersects = ray.intersectObjects(collidableMeshList, true);
+            raycaster.set(position, direct);
+            var intersects = raycaster.intersectObjects(collidableMeshList, true);
             if (intersects.length > 0 && intersects[0].distance < 2)
-                break;  // if collide, do not move
+                bounceBack(position, direct);   // #todo
 
             velocity.x += direct.x * 100 * delta;
             velocity.z += direct.z * 100 * delta;
@@ -365,7 +353,12 @@ function animate() {
     }
     
     renderer.render(scene, camera);
-}
+}   // EOF animate()
+
+
+/***********************/
+/*   GLOBAL FUNCTIONS  */
+/***********************/
 
 function switchMouse() {
     // ask the browser to lock the pointer
@@ -401,4 +394,22 @@ function bounceBack(position, ray) {
     position.x -= ray.bounceDistance.x;
     position.y -= ray.bounceDistance.y;
     position.z -= ray.bounceDistance.z;
+}
+
+var collisionDetection = function (position) {
+    // collision detection
+    for (var index = 0; index < directionList.length; index++) {
+        var bounceSize = 0.07;
+        directionList[index].bounceDistance = {
+            x: directionList[index].x * bounceSize,
+            y: directionList[index].y * bounceSize,
+            z: directionList[index].z * bounceSize
+        };
+        raycaster.set(position, directionList[index]);
+        var intersects = raycaster.intersectObjects(collidableMeshList, true);
+
+        if (intersects.length > 0 && intersects[0].distance < 1.5) {
+            bounceBack(position, directionList[index]);
+        }
+    }
 }
