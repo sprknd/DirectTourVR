@@ -1,7 +1,7 @@
 /** 
 *   @author     with4 / github.com/with4
 *   @file       scene for three.js WebVR
-*   @version    0.1.0
+*   @version    0.2.0
 **/
 
 if (typeof require === 'function') {
@@ -19,14 +19,18 @@ var container, scene, camera, renderer, controls, stats;
 var crosshair;
 var isMouseDown = false;
 var clock;
+var room;
+var pointLight, pointLight2;
 
 var keyboard = new THREEx.KeyboardState();
 var gamepads;
 var controlsEnabled = false;
-var raycaster;
+var raycaster, raycasterCamera, INTERACTED;
 var collidableMeshList = [];
+var interactableMeshList = [];
 
-var naviworks_base;
+var box;
+
 var directionList = [
     new THREE.Vector3(0, 0, 1),     // 0
     new THREE.Vector3(1, 0, 1),     // 45
@@ -62,20 +66,19 @@ if (havePointerLock) {
     }
 
 }
+var moveForward = false;
+var moveBackward = false;
+var moveLeft = false;
+var moveRight = false;
+var canJump = false;
+var velocity = new THREE.Vector3();
+var direction = new THREE.Vector3();
 
 
 init();
 animate();
 
 
-var moveForward = false;
-var moveBackward = false;
-var moveLeft = false;
-var moveRight = false;
-var canJump = false;
-var prevTime = performance.now();
-var velocity = new THREE.Vector3();
-var direction = new THREE.Vector3();
 
 /***********************/
 /*      FUNCTIONS      */
@@ -83,6 +86,7 @@ var direction = new THREE.Vector3();
 function init() 
 {
     clock = new THREE.Clock();
+    playMusic();
 
     // Append the canvas element created by the renderer to document body element.
     container = document.createElement('div');
@@ -114,15 +118,34 @@ function init()
     /*       SCENE        */
     /***********************/
     scene = new THREE.Scene();
-    scene.background = new THREE.Color( 0xffffff );
+    scene.background = new THREE.Color( 0x000000 );
     //scene.fog = new THREE.Fog(0xffffff, 0, 300);
 
     /***********************/
     /*      LIGHT          */
     /***********************/
     var light = new THREE.HemisphereLight( 0xfff0f0, 0x606066 );
-    // var light = new THREE.AmbientLight(0xFFFFFF);
+    var light = new THREE.AmbientLight(0xFFFFFF);
     scene.add(light);
+
+    function createLight (color) {
+        var pointLight = new THREE.PointLight(color, 30, 30);
+        pointLight.castShadow = true;
+        pointLight.shadow.camera.near = 1;
+        pointLight.shadow.camera.far = 60;
+        pointLight.shadow.bias = -0.005;    // reduce self-shadowing on double-sided objects
+
+        var geometry = new THREE.SphereGeometry(0.3, 12, 6);
+        var material = new THREE.MeshBasicMaterial({ color: color });
+        var sphere = new THREE.Mesh(geometry, material);
+        pointLight.add(sphere);
+        return pointLight;
+    }
+
+    pointLight = createLight(0xff0000);
+    pointLight2 = createLight(0xfff000);
+    scene.add(pointLight);
+    scene.add(pointLight2);
 
     /***********************/
     /*       CAMERA        */
@@ -132,6 +155,18 @@ function init()
     scene.add(camera);
     camera.position.set(1, 0, 1);
         
+    /***********************/
+    /*       SKYBOX        */
+    /***********************/
+    room = new THREE.Mesh(
+        new THREE.BoxGeometry(10, 7, 10, 10, 7, 10),
+        new THREE.MeshBasicMaterial({ color: 0x808080, wireframe: true })
+    );
+    room.position.set(30, 4, 30);
+    room.scale.set(15, 15, 15);
+    scene.add(room);
+    collidableMeshList.push(room);
+
     /***********************/
     /*      CONTROLS       */
     /***********************/
@@ -152,6 +187,7 @@ function init()
         })
     );
     crosshair.position.z = -2;
+    //crosshair.material.color.setHex(0xfff000);
     camera.add(crosshair);
 
     /***********************/
@@ -235,6 +271,8 @@ function init()
     raycaster = new THREE.Raycaster(new THREE.Vector3(),
         new THREE.Vector3(0, -1, 0),0, 10);
 
+    raycasterCamera = new THREE.Raycaster();
+    
     /***********************/
     /*      STATS          */
     /***********************/
@@ -257,15 +295,25 @@ function init()
         // function when resource is loaded
         function(geometry, materials) {
             var material = new THREE.MeshFaceMaterial(materials);
-            naviworks_base = new THREE.Mesh(geometry, material);
+            var naviworks_base = new THREE.Mesh(geometry, material);
             naviworks_base.name = "naviworks_base";
 
             naviworks_base.scale.set(1.5, 1.5, 1.5);
-            //object.position.set(0, 0, 0);
             scene.add(naviworks_base);
             collidableMeshList.push(naviworks_base);
         }
     );
+
+    // interactbox
+    box = new THREE.Mesh(
+        new THREE.BoxGeometry(3, 3, 3, 3, 3, 3),
+        new THREE.MeshBasicMaterial({ color: 0x808080, wireframe: false })
+    );
+    box.name = "intaebox";
+    box.position.set(20, 3, 50);
+    scene.add(box);
+    interactableMeshList.push(box);
+
 }   // EOF init()
 
 function animate() {
@@ -273,8 +321,26 @@ function animate() {
     stats.update();
     
     var delta = clock.getDelta();
-    var position = controls.getObject().position;
+    var pos = controls.getObject().position;
 
+    raycasterCamera.setFromCamera( {x: 0, y: 0}, camera);
+    var interacts = raycasterCamera.intersectObjects(interactableMeshList);
+    if (interacts.length > 0) {
+        if (INTERACTED != interacts[0].object) {
+            if (INTERACTED) 
+                INTERACTED.material.color.setHex(INTERACTED.currentHex);
+            
+            INTERACTED = interacts[0].object;
+            INTERACTED.currentHex = INTERACTED.material.color.getHex();
+            if (INTERACTED.name == "intaebox")
+                INTERACTED.material.color.setHex(0xff0000);
+        }
+    } else {
+        if (INTERACTED)
+            INTERACTED.material.color.setHex(INTERACTED.currentHex);
+        INTERACTED = undefined;
+    }
+    
     if (controlsEnabled === true) {
         velocity.x -= velocity.x * 10 * delta;
         velocity.z -= velocity.z * 10 * delta;
@@ -284,7 +350,7 @@ function animate() {
         direction.z = Number(moveForward) - Number(moveBackward);
         direction.normalize();
         
-        collisionDetection(position);
+        collisionDetection(pos);
 
         if (moveLeft || moveRight)
             velocity.x -= direction.x * 100.0 * delta;
@@ -300,9 +366,9 @@ function animate() {
         controls.getObject().translateY(velocity.y * delta);
         controls.getObject().translateZ(velocity.z * delta);
 
-        if (position.y < 10) {
+        if (pos.y < 10) {
             velocity.y = 0;
-            position.y = 2;
+            pos.y = 2;
             canJump = true;
         }
     }
@@ -322,10 +388,12 @@ function animate() {
             direct.normalize();
 
             // collision dectection
-            raycaster.set(position, direct);
+            // raycaster.set(pos, direct);
+            raycaster.setFromCamera({x:0, y:0}, camera);
             var intersects = raycaster.intersectObjects(collidableMeshList, true);
             if (intersects.length > 0 && intersects[0].distance < 2)
-                bounceBack(position, direct);   // #todo
+                break;
+                //bounceBack(pos, direct);   // #todo
 
             velocity.x += direct.x * 100 * delta;
             velocity.z += direct.z * 100 * delta;
@@ -334,9 +402,9 @@ function animate() {
             controls.getObject().translateY( velocity.y * delta );
             controls.getObject().translateZ( velocity.z * delta );
             
-            if (position.y < 10) {
+            if (pos.y < 10) {
                 velocity.y = 0;
-                position.y = 2;
+                pos.y = 2;
                 canJump = true;
             }
 
@@ -351,6 +419,22 @@ function animate() {
         default:
             break;
     }
+    
+    // lights
+    var time = performance.now() * 0.001;
+    pointLight.position.x = 30 + Math.sin(time) * 9;
+    pointLight.position.y = 50 + Math.sin(time * 1.1) * 9 + 5;
+    pointLight.position.z = 50 + Math.sin(time * 1.2) * 9;
+
+    time += 1000;
+
+    pointLight2.position.x = 30 + Math.sin(time) * 9;
+    pointLight2.position.y = 30 + Math.sin(time * 1.1) * 9 + 5;
+    pointLight2.position.z = 30 + Math.sin(time * 1.2) * 9;
+
+    // rotateObject(textMesh);
+    box.rotation.y -= 0.01;
+    //textMesh.rotation.y -= 0.01;
     
     renderer.render(scene, camera);
 }   // EOF animate()
@@ -374,6 +458,11 @@ function playSound() {
     var sound = document.getElementById('sound');
     sound.play();
 }
+function playMusic() {
+    var music = document.getElementById('bgmusic');
+    music.play();
+}
+
 
 function isGearVRGamepadPressed() {
     gamepads = navigator.getGamepads && navigator.getGamepads();
@@ -390,13 +479,13 @@ function isGearVRGamepadPressed() {
     return arrIndex;
 }
 
-function bounceBack(position, ray) {
-    position.x -= ray.bounceDistance.x;
-    position.y -= ray.bounceDistance.y;
-    position.z -= ray.bounceDistance.z;
+function bounceBack(pos, ray) {
+    pos.x -= ray.bounceDistance.x;
+    pos.y -= ray.bounceDistance.y;
+    pos.z -= ray.bounceDistance.z;
 }
 
-var collisionDetection = function (position) {
+var collisionDetection = function (pos) {
     // collision detection
     for (var index = 0; index < directionList.length; index++) {
         var bounceSize = 0.07;
@@ -405,11 +494,11 @@ var collisionDetection = function (position) {
             y: directionList[index].y * bounceSize,
             z: directionList[index].z * bounceSize
         };
-        raycaster.set(position, directionList[index]);
+        raycaster.set(pos, directionList[index]);
         var intersects = raycaster.intersectObjects(collidableMeshList, true);
 
         if (intersects.length > 0 && intersects[0].distance < 1.5) {
-            bounceBack(position, directionList[index]);
+            bounceBack(pos, directionList[index]);
         }
     }
 }
