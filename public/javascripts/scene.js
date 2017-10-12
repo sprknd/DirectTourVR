@@ -8,9 +8,9 @@ if (typeof require === 'function') {
     var THREE = require('three');
 }
 
-// WEBVR.checkAvailability().catch(function (message) {
-//     document.body.appendChild(WEBVR.getMessageContainer(message));
-// });
+WEBVR.checkAvailability().catch(function (message) {
+    document.body.appendChild(WEBVR.getMessageContainer(message));
+});
 
 /*********************************/
 /*       GLOBAL VARIABLES        */
@@ -25,11 +25,14 @@ var pointLight, pointLight2;
 var keyboard = new THREEx.KeyboardState();
 var gamepads;
 var controlsEnabled = false;
-var raycaster, raycasterCamera, INTERACTED;
+
+var raycaster, raycasterCamera, lastINTERACTED;
+var doorbox;
+var location;   // 0: outside, 1: 1st floor
 var collidableMeshList = [];
 var interactableMeshList = [];
 
-var box;
+var counter = 0;
 
 var directionList = [
     new THREE.Vector3(0, 0, 1),     // 0
@@ -86,7 +89,7 @@ animate();
 function init() 
 {
     clock = new THREE.Clock();
-    playMusic();
+    //playMusic();
 
     // Append the canvas element created by the renderer to document body element.
     container = document.createElement('div');
@@ -179,15 +182,18 @@ function init()
     /*     CROSS-HAIR      */
     /***********************/
     crosshair = new THREE.Mesh(
-        new THREE.RingGeometry(0.02, 0.04, 32),
+        // new THREE.RingGeometry(0.0015, 0.003, 64),
+        new THREE.RingGeometry(0.007, 0.015, 32),
         new THREE.MeshBasicMaterial({
             color: 0xffffff,
             opacity: 0.3,
             transparent: true
         })
     );
-    crosshair.position.z = -2;
-    //crosshair.material.color.setHex(0xfff000);
+    // crosshair.position.z = -0.1;
+    crosshair.position.z = -0.5;
+    crosshair.defaultColor = crosshair.material.color.getHex();
+    crosshair.defaultGeometry = crosshair.geometry;
     camera.add(crosshair);
 
     /***********************/
@@ -271,7 +277,8 @@ function init()
     raycaster = new THREE.Raycaster(new THREE.Vector3(),
         new THREE.Vector3(0, -1, 0),0, 10);
 
-    raycasterCamera = new THREE.Raycaster();
+    raycasterCamera = new THREE.Raycaster(new THREE.Vector3(),
+        new THREE.Vector3(0, -1, 0),0, 10);
     
     /***********************/
     /*      STATS          */
@@ -305,14 +312,16 @@ function init()
     );
 
     // interactbox
-    box = new THREE.Mesh(
-        new THREE.BoxGeometry(3, 3, 3, 3, 3, 3),
-        new THREE.MeshBasicMaterial({ color: 0x808080, wireframe: false })
+    doorbox = new THREE.Mesh(
+        new THREE.BoxGeometry(0.5, 3, 3, 3, 3, 3),
+        new THREE.MeshBasicMaterial({ 
+            color: 0x808080, wireframe: false, visible: true })
     );
-    box.name = "intaebox";
-    box.position.set(20, 3, 50);
-    scene.add(box);
-    interactableMeshList.push(box);
+    doorbox.name = "doorbox";
+    // doorbox.position.set(24.1, 2, 23);
+    doorbox.position.set(35, 2, 80);
+    scene.add(doorbox);
+    interactableMeshList.push(doorbox);
 
 }   // EOF init()
 
@@ -323,24 +332,30 @@ function animate() {
     var delta = clock.getDelta();
     var pos = controls.getObject().position;
 
-    raycasterCamera.setFromCamera( {x: 0, y: 0}, camera);
+    // interact with entrance
+    raycasterCamera.setFromCamera({x: 0, y: 0}, camera);
     var interacts = raycasterCamera.intersectObjects(interactableMeshList);
-    if (interacts.length > 0) {
-        if (INTERACTED != interacts[0].object) {
-            if (INTERACTED) 
-                INTERACTED.material.color.setHex(INTERACTED.currentHex);
-            
-            INTERACTED = interacts[0].object;
-            INTERACTED.currentHex = INTERACTED.material.color.getHex();
-            if (INTERACTED.name == "intaebox")
-                INTERACTED.material.color.setHex(0xff0000);
+
+    if (interacts.length > 0) { // when interact
+        var INTERACTED = interacts[0].object;
+        INTERACTED.distance = interacts[0].distance;
+
+        // is door box mesh and in distance?
+        if (INTERACTED.name == 'doorbox' && INTERACTED.distance < 5) {
+            if (lastINTERACTED != INTERACTED) {
+                crosshair.material.color.setHex(0xff0000);
+                lastINTERACTED = INTERACTED;
+            }
+        } else {    // not door box or not in distance
+            crosshair.material.color.setHex(crosshair.defaultColor);
+            lastINTERACTED = undefined;
         }
-    } else {
-        if (INTERACTED)
-            INTERACTED.material.color.setHex(INTERACTED.currentHex);
-        INTERACTED = undefined;
+    } else {    // when no interact
+        crosshair.material.color.setHex(crosshair.defaultColor);
+        lastINTERACTED = undefined;
     }
     
+    // keyboard/mouse control
     if (controlsEnabled === true) {
         velocity.x -= velocity.x * 10 * delta;
         velocity.z -= velocity.z * 10 * delta;
@@ -432,10 +447,8 @@ function animate() {
     pointLight2.position.y = 30 + Math.sin(time * 1.1) * 9 + 5;
     pointLight2.position.z = 30 + Math.sin(time * 1.2) * 9;
 
-    // rotateObject(textMesh);
-    box.rotation.y -= 0.01;
-    //textMesh.rotation.y -= 0.01;
-    
+    progressRing();
+
     renderer.render(scene, camera);
 }   // EOF animate()
 
@@ -501,4 +514,23 @@ var collisionDetection = function (pos) {
             bounceBack(pos, directionList[index]);
         }
     }
+}
+
+function progressRing() {
+    if (lastINTERACTED) {
+        counter += Math.PI / 100;   // increase speed
+        var ZeroTwo = Math.sin(counter - Math.PI / 2) + 1;    // start from pi/2 in sin graph
+        var progressRing = new THREE.RingGeometry(0.007, 0.015, 32, 8, 0, Math.PI * ZeroTwo);
+        
+        // change crosshair geometry
+        crosshair.geometry = progressRing;
+        crosshair.material.color.setHex(0xff0000);
+        crosshair.rotation.z = (180 - (180 * ZeroTwo)) * (Math.PI / 180);
+    } else {
+        crosshair.geometry = crosshair.defaultGeometry;
+        counter = 0;
+    }
+
+    if (ZeroTwo == 2)   return true;
+    else                return false;
 }
