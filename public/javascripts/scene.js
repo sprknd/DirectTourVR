@@ -8,9 +8,9 @@ if (typeof require === 'function') {
     var THREE = require('three');
 }
 
-WEBVR.checkAvailability().catch(function (message) {
-    document.body.appendChild(WEBVR.getMessageContainer(message));
-});
+// WEBVR.checkAvailability().catch(function (message) {
+//     document.body.appendChild(WEBVR.getMessageContainer(message));
+// });
 
 /*********************************/
 /*       GLOBAL VARIABLES        */
@@ -19,15 +19,16 @@ var container, scene, camera, renderer, controls, stats;
 var crosshair;
 var isMouseDown = false;
 var clock;
-var room;
+var skybox;
 var pointLight, pointLight2;
+
+var meshList = new Array();
 
 var keyboard = new THREEx.KeyboardState();
 var gamepads;
 var controlsEnabled = false;
 
 var raycaster, raycasterCamera, lastINTERACTED;
-var doorbox;
 var location;   // 0: outside, 1: 1st floor
 var collidableMeshList = [];
 var interactableMeshList = [];
@@ -127,8 +128,8 @@ function init()
     /***********************/
     /*      LIGHT          */
     /***********************/
-    var light = new THREE.HemisphereLight( 0xfff0f0, 0x606066 );
-    var light = new THREE.AmbientLight(0xFFFFFF);
+    var light = new THREE.HemisphereLight( 0xffffff, 0x606066 );
+    // var light = new THREE.AmbientLight(0xFFFFFF);
     scene.add(light);
 
     function createLight (color) {
@@ -161,14 +162,24 @@ function init()
     /***********************/
     /*       SKYBOX        */
     /***********************/
-    room = new THREE.Mesh(
-        new THREE.BoxGeometry(10, 7, 10, 10, 7, 10),
-        new THREE.MeshBasicMaterial({ color: 0x808080, wireframe: true })
-    );
-    room.position.set(30, 4, 30);
-    room.scale.set(15, 15, 15);
-    scene.add(room);
-    collidableMeshList.push(room);
+    // skybox = new THREE.Mesh(
+    //     new THREE.BoxGeometry(10, 7, 10, 10, 7, 10),
+    //     new THREE.MeshBasicMaterial({ color: 0x808080, wireframe: true })
+    // );
+    // skybox.position.set(30, 4, 30);
+    // skybox.scale.set(15, 15, 15);
+    // scene.add(skybox);
+    // collidableMeshList.push(skybox);
+    var urlPrefix = 'assets/skybox/';
+    var url = [urlPrefix + 'skybox_world_posx.jpg',
+                urlPrefix + 'skybox_world_negx.jpg',
+                urlPrefix + 'skybox_world_posy.jpg',
+                urlPrefix + 'skybox_world_negy.jpg',
+                urlPrefix + 'skybox_world_posz.jpg',
+                urlPrefix + 'skybox_world_negz.jpg'];
+    var textureCube = THREE.ImageUtils.loadTextureCube(url);
+
+    // var shader = THREE.Shader
 
     /***********************/
     /*      CONTROLS       */
@@ -176,7 +187,7 @@ function init()
     // controls = new THREE.OrbitControls(camera, renderer.domElement);
     controls = new THREE.PointerLockControls(camera);
     scene.add(controls.getObject());
-    controls.getObject().position.set(32.2538, 2, 92.2421);
+    controls.getObject().position.set(32.2538, 2.5, 92.2421);
 
     /***********************/
     /*     CROSS-HAIR      */
@@ -294,33 +305,21 @@ function init()
     /*      GEOMETRY       */
     /***********************/
     // Loader //
-    var loader = new THREE.JSONLoader();
-    loader.load(
-        // resource URL
-        '/assets/naviworks/naviworks_base.js', 
-        
-        // function when resource is loaded
-        function(geometry, materials) {
-            var material = new THREE.MeshFaceMaterial(materials);
-            var naviworks_base = new THREE.Mesh(geometry, material);
-            naviworks_base.name = "naviworks_base";
-
-            naviworks_base.scale.set(1.5, 1.5, 1.5);
-            scene.add(naviworks_base);
-            collidableMeshList.push(naviworks_base);
-        }
-    );
+    addMesh('/assets/naviworks/naviworks_base.js', 'naviworks_base');
 
     // interactbox
-    doorbox = new THREE.Mesh(
+    var doorbox = new THREE.Mesh(
         new THREE.BoxGeometry(0.5, 3, 3, 3, 3, 3),
         new THREE.MeshBasicMaterial({ 
             color: 0x808080, wireframe: false, visible: true })
     );
     doorbox.name = "doorbox";
-    // doorbox.position.set(24.1, 2, 23);
-    doorbox.position.set(35, 2, 80);
+    doorbox.position.set(24.1, 2, 23);
+    // doorbox.position.set(35, 2, 80);
     scene.add(doorbox);
+
+    meshList.push(doorbox);
+    collidableMeshList.push(doorbox);
     interactableMeshList.push(doorbox);
 
 }   // EOF init()
@@ -365,7 +364,7 @@ function animate() {
         direction.z = Number(moveForward) - Number(moveBackward);
         direction.normalize();
         
-        collisionDetection(pos);
+        // collisionDetection(pos);
 
         if (moveLeft || moveRight)
             velocity.x -= direction.x * 100.0 * delta;
@@ -383,7 +382,7 @@ function animate() {
 
         if (pos.y < 10) {
             velocity.y = 0;
-            pos.y = 2;
+            pos.y = 2.5;
             canJump = true;
         }
     }
@@ -419,7 +418,7 @@ function animate() {
             
             if (pos.y < 10) {
                 velocity.y = 0;
-                pos.y = 2;
+                pos.y = 2.5;
                 canJump = true;
             }
 
@@ -447,7 +446,11 @@ function animate() {
     pointLight2.position.y = 30 + Math.sin(time * 1.1) * 9 + 5;
     pointLight2.position.z = 30 + Math.sin(time * 1.2) * 9;
 
-    progressRing();
+    if (progressRing()) {
+        removeAllMesh();
+        addMesh('/assets/naviworks/naviworks_floor1.js', 'naviworks_floor1');
+        // addMesh('/assets/naviworks/vts.js', 'vts');
+    }
 
     renderer.render(scene, camera);
 }   // EOF animate()
@@ -533,4 +536,35 @@ function progressRing() {
 
     if (ZeroTwo == 2)   return true;
     else                return false;
+}
+
+function addMesh(url, name) {
+    var loader = new THREE.JSONLoader();
+    loader.load(
+        // resource URL
+        url, 
+        
+        // function when resource is loaded
+        function(geometry, materials) {
+            var material = new THREE.MeshFaceMaterial(materials);
+            var mesh = new THREE.Mesh(geometry, material);
+            mesh.name = name;
+
+            mesh.scale.set(1.5, 1.5, 1.5);
+            scene.add(mesh);
+
+            meshList.push(mesh);
+            collidableMeshList.push(mesh);
+        }
+    );
+}
+
+function removeAllMesh() {
+    meshList.forEach(function(value, index) {
+        if (value)
+            scene.remove(value);
+        if (value.geometry)
+            value.geometry.dispose();
+    });
+    meshList = [];  // clear array
 }
